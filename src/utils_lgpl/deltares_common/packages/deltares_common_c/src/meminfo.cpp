@@ -1,10 +1,8 @@
 #include "meminfo.h"
-#if linux
-#include <sys/sysctl.h>
-#endif
+#include <fstream>
+#include <string>
 
 #ifdef WIN32
-
 unsigned __int64 MemInfo::GetTotalMemSize()
 {
   MEMORYSTATUSEX status;
@@ -23,14 +21,18 @@ return (pages * page_size);
 #else
 unsigned long long MemInfo::GetTotalMemSize()
 {
-int mib[2];
-size_t len;
-long long totalphys64;
-
-mib[0] = CTL_HW;
-mib[1] = HW_MEMSIZE; /* gives a 64 bit int */
-len = sizeof(totalphys64);
-sysctl(mib, 2, &totalphys64, &len, NULL, 0);
-return totalphys64;
+std::ifstream meminfo("/proc/meminfo");
+std::string line;
+while (std::getline(meminfo, line))
+{
+  if (line.find("MemTotal") != std::string::npos)
+  {
+    unsigned long long total_mem_kB;
+    std::sscanf(line.c_str(), "MemTotal:        %llu kB", &total_mem_kB);
+    return total_mem_kB * 1024;  // Convert to bytes
+  }
+}
+// If we didn't find the MemTotal line for some reason, return 0.
+return 0;
 }
 #endif
